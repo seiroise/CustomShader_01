@@ -1,13 +1,22 @@
 ﻿//2016.12.02
 //-------------------------------------
 //三角ポリゴンごとに描画する色を変えるシェーダ
+//HSV指定
 //-------------------------------------
 
 Shader "CustomShader/TestGeometryShader_01" {
 	Properties {
-		_MainColor("Color", COLOR) = (1,1,1,1)
-		_Randomness("Randomness", Range(0, 1)) = 0.5
-		_SpeedScale("SpeedScale", Range(0, 100)) = 10
+		//色相(hue)
+		_HueMin("HueMin", Range(0, 1)) = 0.5
+		_HueMax("HueMax", Range(0, 1)) = 0.6
+		//彩度(Saturation)
+		_SatMin("SatMin", Range(0, 1)) = 0.9
+		_SatMax("SatMax", Range(0, 1)) = 1.0
+		//明度(Value)
+		_ValMin("ValMin", Range(0, 1)) = 0.9
+		_ValMax("ValMax", Range(0, 1)) = 1.0
+		//時間倍率
+		_TimeScale("TimeScale", Range(0, 100)) = 10
 	}
 	SubShader {
 		Tags {"renderType" = "Opaque"}
@@ -21,12 +30,14 @@ Shader "CustomShader/TestGeometryShader_01" {
 
 			#include "UnityCG.cginc"
 
+			//バーテックスシェーダへの入力構造体
 			struct appdata {
 				float4 vertex	: POSITION;
 				float2 uv		: TEXCOORD0;
 				float3 normal	: NORMAL;
 			};
 
+			//バーテックスシェーダからジオメトリ、フラグメントシェーダの入力
 			struct v2f {
 				float4 vertex	: SV_POSITION;
 				float2 uv		: TEXCOORD0;
@@ -36,9 +47,10 @@ Shader "CustomShader/TestGeometryShader_01" {
 			};
 
 			//プロパティの受取
-			float4 _MainColor;	//色
-			float _Randomness;	//ランダムさ
-			float _SpeedScale;	//変化速度
+			float _HueMin, _HueMax;
+			float _SatMin, _SatMax;
+			float _ValMin, _ValMax;
+			float _TimeScale;
 
 			//乱数生成
 			float rand(float2 co) {
@@ -49,7 +61,7 @@ Shader "CustomShader/TestGeometryShader_01" {
 			//指定した範囲の乱数を生成する
 			float randRange(float min, float max, float2 co) {
 				float delta = max - min;
-				return max + rand(co) * delta;
+				return min + rand(co) * delta;
 			}
 
 			//RGBからHSVへの変換
@@ -128,24 +140,18 @@ Shader "CustomShader/TestGeometryShader_01" {
 				//頂点座標からベクトルを求め面の法線を計算する
 				float3 normal = normalize(cross(input[1].worldPosition.xyz - input[0].worldPosition.xyz,
 						 input[2].worldPosition.xyz - input[0].worldPosition.xyz));
-				//RGBをHSVに変換
-				float3 hsv = rgb2hsv(_MainColor);
 
-				//乱数の生成
-				float r = rand(input[0].uv + input[1].uv + input[2].uv);
-				//s(色相)をいじる
-				hsv.y += r;
-				if(hsv.y > 1) {
-					hsv.y -= (hsv.y - 1);
-				} else if(hsv.y < 0) {
-					hsv.y = abs(hsv.y);
-				}
-
-				//v(明度)をいじる
-				hsv.z += sin(_Time * r * _SpeedScale) * 0.2;
+				float3 hsv = float3(1, 1, 1);
+				float2 sumUV = input[0].uv + input[1].uv + input[2].uv;
+				float rNum = rand(sumUV);
+				float offset = sin((_Time* _TimeScale) + rNum);
+				//乱数からそれぞれの値を生成
+				hsv.x = randRange(_HueMin, _HueMax, sumUV);
+				hsv.y = randRange(_SatMin + offset, _SatMax + offset, sumUV);
+				hsv.z = randRange(_ValMin + offset, _ValMax + offset, sumUV);
 
 				//HSVをRGBに変換
-				float4 rgba = float4(hsv2rgb(hsv), _MainColor.w);
+				float4 rgba = float4(hsv2rgb(hsv), 1);
 
 				//新しく追加する頂点の設定
 				int i;
