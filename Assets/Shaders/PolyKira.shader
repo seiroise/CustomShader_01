@@ -4,7 +4,8 @@
 //HSV指定
 //-------------------------------------
 
-Shader "CustomShader/TestGeometryShader_01" {
+Shader "CustomShader/PolyKira" {
+
 	Properties {
 		//色相(hue)
 		_HueMin("HueMin", Range(0, 1)) = 0.5
@@ -17,11 +18,10 @@ Shader "CustomShader/TestGeometryShader_01" {
 		_ValMax("ValMax", Range(0, 1)) = 1.0
 		//時間倍率
 		_TimeScale("TimeScale", Range(0, 100)) = 10
+		//乱雑さ
+		_Randomness("Randomness", Range(0, 1)) = 0.2
 	}
 	SubShader {
-		Tags {"renderType" = "Opaque"}
-		LOD 100
-
 		Pass {
 			CGPROGRAM
 			#pragma vertex vert
@@ -51,6 +51,7 @@ Shader "CustomShader/TestGeometryShader_01" {
 			float _SatMin, _SatMax;
 			float _ValMin, _ValMax;
 			float _TimeScale;
+			float _Randomness;
 
 			//乱数生成
 			float rand(float2 co) {
@@ -144,10 +145,14 @@ Shader "CustomShader/TestGeometryShader_01" {
 				float3 hsv = float3(1, 1, 1);
 				float2 sumUV = input[0].uv + input[1].uv + input[2].uv;
 				float rNum = rand(sumUV);
-				float offset = sin((_Time* _TimeScale) + rNum);
+				float offset = sin((_Time + rNum) * _TimeScale) * _Randomness;
+
 				//乱数からそれぞれの値を生成
 				hsv.x = randRange(_HueMin, _HueMax, sumUV);
+				//彩度
 				hsv.y = randRange(_SatMin + offset, _SatMax + offset, sumUV);
+
+				//明度
 				hsv.z = randRange(_ValMin + offset, _ValMax + offset, sumUV);
 
 				//HSVをRGBに変換
@@ -172,4 +177,6 @@ Shader "CustomShader/TestGeometryShader_01" {
 			ENDCG
 		}
 	}
+	FallBack "Diffuse"
+	CustomEditor "PolyKiraGUI"
 }
